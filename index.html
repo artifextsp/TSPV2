@@ -209,39 +209,91 @@ async function login(e) {
             return showAlert('⚠️ Ya tienes una sesión activa. Cierra la sesión anterior antes de ingresar nuevamente.', 'warning');
         }
         
-        // 4. Verificar si ya completó CUALQUIER actividad (en cualquier grado)
-        const rLectura = await fetch(
-            `${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&ciclo=eq.${CICLO_ACTUAL}&habilitado=eq.false`,
-            {
-                headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        // 4. NO verificamos lecturas completadas aquí porque:
+        // - Las plataformas nuevas pueden tener diferentes títulos de lectura
+        // - La plataforma misma verifica si ya completó esa lectura específica
+        // - Esto permite que los estudiantes accedan a nuevas plataformas incluso si completaron sesiones anteriores
+        
+        // 5. Crear o actualizar sesión activa
+        // Estrategia: Intentar actualizar primero, si falla crear nueva, si falla con 409 actualizar de nuevo
+        try {
+            // Intentar actualizar sesión existente
+            const rUpdateSesion = await fetch(
+                `${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${user.grado}&ciclo=eq.${CICLO_ACTUAL}`, 
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': KEY,
+                        'Authorization': 'Bearer ' + KEY,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        sesion_activa: true
+                    })
+                }
+            );
+            
+            const updateData = rUpdateSesion.ok ? await rUpdateSesion.json().catch(() => []) : [];
+            
+            // Si se actualizó correctamente, continuar
+            if (rUpdateSesion.ok && Array.isArray(updateData) && updateData.length > 0) {
+                // Sesión actualizada exitosamente
+            } else {
+                // No existe, intentar crear
+                const rCrearSesion = await fetch(`${URL}/sesiones_activas`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': KEY,
+                        'Authorization': 'Bearer ' + KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        codigo_estudiante: codigo,
+                        grado: user.grado,
+                        ciclo: CICLO_ACTUAL,
+                        sesion_activa: true
+                    })
+                });
+                
+                // Si falla con 409 (conflicto), la sesión existe, actualizar de nuevo
+                if (rCrearSesion.status === 409) {
+                    await fetch(
+                        `${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${user.grado}&ciclo=eq.${CICLO_ACTUAL}`, 
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'apikey': KEY,
+                                'Authorization': 'Bearer ' + KEY,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                sesion_activa: true
+                            })
+                        }
+                    );
+                } else if (!rCrearSesion.ok) {
+                    throw new Error('Error al crear sesión');
+                }
             }
-        );
-        const lecturas = await rLectura.json();
-
-        if (lecturas && lecturas.length > 0) {
-            await mostrarResultados(lecturas[0], user);
-            return;
-        }
-        
-        // 5. Crear sesión activa
-        const rCrearSesion = await fetch(`${URL}/sesiones_activas`, {
-            method: 'POST',
-            headers: {
-                'apikey': KEY,
-                'Authorization': 'Bearer ' + KEY,
-                'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-duplicates'
-            },
-            body: JSON.stringify({
-                codigo_estudiante: codigo,
-                grado: user.grado,
-                ciclo: CICLO_ACTUAL,
-                sesion_activa: true
-            })
-        });
-        
-        if (!rCrearSesion.ok) {
-            throw new Error('Error al crear sesión');
+        } catch (err) {
+            // Si todo falla, intentar una última vez actualizar
+            await fetch(
+                `${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${user.grado}&ciclo=eq.${CICLO_ACTUAL}`, 
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': KEY,
+                        'Authorization': 'Bearer ' + KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sesion_activa: true
+                    })
+                }
+            ).catch(() => {
+                throw new Error('Error al gestionar sesión');
+            });
         }
         
         // 6. Guardar info del usuario y redirigir a plataforma

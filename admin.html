@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - Thinking Skills</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.container{max-width:800px;margin:0 auto;background:white;border-radius:20px;padding:40px;box-shadow:0 15px 40px rgba(0,0,0,0.2)}
+h1{color:#667eea;text-align:center;margin-bottom:30px}
+.section{background:#f8f9fa;padding:25px;border-radius:12px;margin-bottom:20px}
+.section-title{font-size:1.3em;color:#333;margin-bottom:15px;font-weight:600}
+input,select{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:16px;margin-bottom:15px}
+input:focus,select:focus{outline:none;border-color:#667eea}
+.btn{background:#667eea;color:white;padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-size:16px;font-weight:600;width:100%;transition:all 0.3s}
+.btn:hover{background:#5568d3;transform:translateY(-2px)}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-danger{background:#e74c3c;margin-top:5px}
+.btn-danger:hover{background:#c0392b}
+.registro-item{background:white;padding:15px;border-radius:8px;margin-bottom:10px;border-left:4px solid #667eea}
+.registro-item h4{margin-bottom:8px;color:#333}
+.registro-item p{margin:5px 0;color:#666;font-size:14px}
+.alert{padding:12px;border-radius:8px;margin:15px 0;font-weight:500}
+.alert-success{background:#d4edda;color:#155724;border:2px solid #c3e6cb}
+.alert-error{background:#f8d7da;color:#721c24;border:2px solid #f5c6cb}
+.footer{text-align:center;margin-top:30px;color:#666;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔧 Panel de Administración</h1>
+    
+    <div class="section">
+        <div class="section-title">1️⃣ Restaurar Contraseña</div>
+        <input type="text" id="codigo1" placeholder="Código estudiante (ej: EST0001)">
+        <button class="btn" onclick="restaurarPassword()">Restaurar Contraseña a TSP2025</button>
+        <div id="msg1"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2️⃣ Habilitar Actividad Completada</div>
+        <input type="text" id="codigo2" placeholder="Código estudiante">
+        <select id="grado2">
+            <option value="">Seleccionar grado</option>
+            <option value="1">Grado 1</option>
+            <option value="2">Grado 2</option>
+            <option value="3">Grado 3</option>
+            <option value="4">Grado 4</option>
+            <option value="5">Grado 5</option>
+            <option value="6">Grado 6</option>
+            <option value="7">Grado 7</option>
+            <option value="8">Grado 8</option>
+            <option value="9">Grado 9</option>
+            <option value="10">Grado 10</option>
+            <option value="11">Grado 11</option>
+        </select>
+        <input type="number" id="ciclo2" placeholder="Número de ciclo" value="1">
+        <button class="btn" onclick="habilitarActividad()">Habilitar Actividad</button>
+        <div id="msg2"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3️⃣ Liberar Sesión Bloqueada</div>
+        <input type="text" id="codigo3" placeholder="Código estudiante">
+        <button class="btn" onclick="liberarSesion()">Liberar Sesión</button>
+        <div id="msg3"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">4️⃣ Ver y Eliminar Registros Bloqueantes</div>
+        <p style="margin-bottom:15px;color:#666;font-size:14px">Esta herramienta te permite ver y eliminar registros que están bloqueando el acceso del estudiante.</p>
+        <input type="text" id="codigo5" placeholder="Código estudiante (ej: EST0001)">
+        <button class="btn" onclick="verRegistrosBloqueantes()">Ver Registros</button>
+        <div id="registrosList" style="margin-top:15px;display:none"></div>
+        <div id="msg5"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">5️⃣ Restauración Completa</div>
+        <input type="text" id="codigo4" placeholder="Código estudiante">
+        <select id="grado4">
+            <option value="">Seleccionar grado</option>
+            <option value="1">Grado 1</option>
+            <option value="2">Grado 2</option>
+            <option value="3">Grado 3</option>
+            <option value="4">Grado 4</option>
+            <option value="5">Grado 5</option>
+            <option value="6">Grado 6</option>
+            <option value="7">Grado 7</option>
+            <option value="8">Grado 8</option>
+            <option value="9">Grado 9</option>
+            <option value="10">Grado 10</option>
+            <option value="11">Grado 11</option>
+        </select>
+        <input type="number" id="ciclo4" placeholder="Número de ciclo" value="1">
+        <button class="btn" onclick="restauracionCompleta()">Restauración Completa (Password + Actividad + Sesión)</button>
+        <div id="msg4"></div>
+    </div>
+
+    <div class="footer">
+        Designed by Hansel Peña Diaz - 3143090748
+    </div>
+</div>
+
+<script>
+const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
+
+function mostrarMsg(id, msg, tipo) {
+    const el = document.getElementById(id);
+    el.className = 'alert alert-' + tipo;
+    el.textContent = msg;
+}
+
+async function restaurarPassword() {
+    const codigo = document.getElementById('codigo1').value.trim().toUpperCase();
+    if (!codigo) return mostrarMsg('msg1', 'Ingresa un código', 'error');
+    
+    try {
+        const r = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({ password: 'TSP2025' })
+        });
+        
+        if (r.ok) {
+            mostrarMsg('msg1', '✅ Contraseña restaurada a TSP2025 para ' + codigo, 'success');
+        } else {
+            mostrarMsg('msg1', '❌ Error: Estudiante no encontrado', 'error');
+        }
+    } catch (e) {
+        mostrarMsg('msg1', '❌ Error: ' + e.message, 'error');
+    }
+}
+
+async function habilitarActividad() {
+    const codigo = document.getElementById('codigo2').value.trim().toUpperCase();
+    const grado = document.getElementById('grado2').value;
+    const ciclo = document.getElementById('ciclo2').value;
+    
+    if (!codigo || !grado) return mostrarMsg('msg2', 'Completa todos los campos', 'error');
+    
+    try {
+        const r = await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({ habilitado: true })
+        });
+        
+        if (r.ok) {
+            mostrarMsg('msg2', '✅ Actividad habilitada para ' + codigo, 'success');
+        } else {
+            mostrarMsg('msg2', '❌ No se encontró actividad completada', 'error');
+        }
+    } catch (e) {
+        mostrarMsg('msg2', '❌ Error: ' + e.message, 'error');
+    }
+}
+
+async function liberarSesion() {
+    const codigo = document.getElementById('codigo3').value.trim().toUpperCase();
+    if (!codigo) return mostrarMsg('msg3', 'Ingresa un código', 'error');
+    
+    try {
+        const r = await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({ sesion_activa: false })
+        });
+        
+        if (r.ok) {
+            mostrarMsg('msg3', '✅ Sesión liberada para ' + codigo, 'success');
+        } else {
+            mostrarMsg('msg3', '❌ Error al liberar sesión', 'error');
+        }
+    } catch (e) {
+        mostrarMsg('msg3', '❌ Error: ' + e.message, 'error');
+    }
+}
+
+async function verRegistrosBloqueantes() {
+    const codigo = document.getElementById('codigo5').value.trim().toUpperCase();
+    if (!codigo) return mostrarMsg('msg5', 'Ingresa un código', 'error');
+    
+    const listDiv = document.getElementById('registrosList');
+    listDiv.style.display = 'block';
+    listDiv.innerHTML = '<p style="color:#666">Cargando registros...</p>';
+    
+    try {
+        // Obtener registros de steam_lectura
+        const rLectura = await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&select=*&order=created_at.desc`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const lecturas = await rLectura.json() || [];
+        
+        // Obtener sesiones activas
+        const rSesion = await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&select=*`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const sesiones = await rSesion.json() || [];
+        
+        let html = '<h3 style="margin-bottom:15px;color:#333">📋 Registros Encontrados</h3>';
+        
+        // Mostrar lecturas
+        if (lecturas.length > 0) {
+            html += '<h4 style="margin:15px 0 10px 0;color:#667eea">📖 Lecturas Registradas:</h4>';
+            lecturas.forEach(lec => {
+                const fecha = lec.created_at ? new Date(lec.created_at).toLocaleString('es-CO') : 'N/A';
+                html += `
+                    <div class="registro-item">
+                        <h4>${lec.titulo_lectura || 'Sin título'}</h4>
+                        <p><strong>Grado:</strong> ${lec.grado} | <strong>Ciclo:</strong> ${lec.ciclo}</p>
+                        <p><strong>Estado:</strong> ${lec.habilitado ? '✅ Habilitado' : '❌ Bloqueado (habilitado=false)'}</p>
+                        <p><strong>Fecha:</strong> ${fecha}</p>
+                        <button class="btn btn-danger" onclick="eliminarLectura('${codigo}', ${lec.grado}, ${lec.ciclo}, '${(lec.titulo_lectura || '').replace(/'/g, "\\'")}')">
+                            🗑️ Eliminar este registro
+                        </button>
+                    </div>
+                `;
+            });
+        } else {
+            html += '<p style="color:#666;padding:10px">No hay registros de lectura para este estudiante.</p>';
+        }
+        
+        // Mostrar sesiones activas
+        if (sesiones.length > 0) {
+            html += '<h4 style="margin:20px 0 10px 0;color:#667eea">🔐 Sesiones Activas:</h4>';
+            sesiones.forEach(ses => {
+                const fecha = ses.created_at ? new Date(ses.created_at).toLocaleString('es-CO') : 'N/A';
+                html += `
+                    <div class="registro-item">
+                        <h4>Sesión - Grado ${ses.grado}, Ciclo ${ses.ciclo}</h4>
+                        <p><strong>Estado:</strong> ${ses.sesion_activa ? '🔴 Activa (bloqueando acceso)' : '✅ Inactiva'}</p>
+                        <p><strong>Fecha:</strong> ${fecha}</p>
+                        <button class="btn btn-danger" onclick="eliminarSesion('${codigo}', ${ses.grado}, ${ses.ciclo})">
+                            🗑️ Eliminar esta sesión
+                        </button>
+                    </div>
+                `;
+            });
+        } else {
+            html += '<p style="color:#666;padding:10px">No hay sesiones activas para este estudiante.</p>';
+        }
+        
+        if (lecturas.length === 0 && sesiones.length === 0) {
+            html = '<p style="color:#27ae60;padding:15px;background:#d4edda;border-radius:8px">✅ No hay registros bloqueantes. El estudiante debería poder acceder normalmente.</p>';
+        }
+        
+        listDiv.innerHTML = html;
+        mostrarMsg('msg5', `✅ Registros cargados para ${codigo}`, 'success');
+        
+    } catch (e) {
+        mostrarMsg('msg5', '❌ Error: ' + e.message, 'error');
+        listDiv.innerHTML = '<p style="color:#e74c3c">Error al cargar registros</p>';
+    }
+}
+
+async function eliminarLectura(codigo, grado, ciclo, titulo) {
+    if (!confirm(`¿Estás seguro de eliminar el registro de lectura "${titulo}" para ${codigo}?`)) return;
+    
+    try {
+        // Construir query con todos los filtros
+        let query = `${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`;
+        if (titulo) {
+            query += `&titulo_lectura=eq.${encodeURIComponent(titulo)}`;
+        }
+        
+        const r = await fetch(query, {
+            method: 'DELETE',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY
+            }
+        });
+        
+        if (r.ok) {
+            mostrarMsg('msg5', '✅ Registro de lectura eliminado exitosamente', 'success');
+            // Recargar la lista
+            setTimeout(() => verRegistrosBloqueantes(), 1000);
+        } else {
+            mostrarMsg('msg5', '❌ Error al eliminar registro', 'error');
+        }
+    } catch (e) {
+        mostrarMsg('msg5', '❌ Error: ' + e.message, 'error');
+    }
+}
+
+async function eliminarSesion(codigo, grado, ciclo) {
+    if (!confirm(`¿Estás seguro de eliminar la sesión para ${codigo}, Grado ${grado}, Ciclo ${ciclo}?`)) return;
+    
+    try {
+        const r = await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`, {
+            method: 'DELETE',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY
+            }
+        });
+        
+        if (r.ok) {
+            mostrarMsg('msg5', '✅ Sesión eliminada exitosamente', 'success');
+            // Recargar la lista
+            setTimeout(() => verRegistrosBloqueantes(), 1000);
+        } else {
+            mostrarMsg('msg5', '❌ Error al eliminar sesión', 'error');
+        }
+    } catch (e) {
+        mostrarMsg('msg5', '❌ Error: ' + e.message, 'error');
+    }
+}
+
+async function restauracionCompleta() {
+    const codigo = document.getElementById('codigo4').value.trim().toUpperCase();
+    const grado = document.getElementById('grado4').value;
+    const ciclo = document.getElementById('ciclo4').value;
+    
+    if (!codigo || !grado) return mostrarMsg('msg4', 'Completa todos los campos', 'error');
+    
+    try {
+        // 1. Restaurar password
+        await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password: 'TSP2025' })
+        });
+        
+        // 2. Habilitar actividad
+        await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ habilitado: true })
+        });
+        
+        // 3. Liberar sesión
+        await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sesion_activa: false })
+        });
+        
+        mostrarMsg('msg4', '✅ Restauración completa exitosa para ' + codigo, 'success');
+    } catch (e) {
+        mostrarMsg('msg4', '❌ Error: ' + e.message, 'error');
+    }
+}
+</script>
+
+</body>
+</html>
