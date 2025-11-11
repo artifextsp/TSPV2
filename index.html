@@ -195,19 +195,13 @@ async function login(e) {
             return;
         }
         
-        // 3. Verificar si ya tiene una sesión activa (Ciclo 1)
-        const CICLO_ACTUAL = 1;
-        const rSesion = await fetch(
-            `${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${user.grado}&ciclo=eq.${CICLO_ACTUAL}&sesion_activa=eq.true`, 
-            {
-                headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
-            }
-        );
-        const sesionesActivas = await rSesion.json();
-        
-        if (sesionesActivas && sesionesActivas.length > 0) {
-            return showAlert('⚠️ Ya tienes una sesión activa. Cierra la sesión anterior antes de ingresar nuevamente.', 'warning');
-        }
+        // 3. Determinar el ciclo correcto según el grado
+        // Mapeo de grados a ciclos basado en las plataformas actuales
+        const cicloPorGrado = {
+            1: 1, 2: 1, 3: 2, 4: 1, 5: 1, 6: 1,
+            7: 1, 8: 2, 9: 2, 10: 2
+        };
+        const CICLO_ACTUAL = cicloPorGrado[user.grado] || 1;
         
         // 4. NO verificamos lecturas completadas aquí porque:
         // - Las plataformas nuevas pueden tener diferentes títulos de lectura
@@ -215,9 +209,10 @@ async function login(e) {
         // - Esto permite que los estudiantes accedan a nuevas plataformas incluso si completaron sesiones anteriores
         
         // 5. Crear o actualizar sesión activa
-        // Estrategia: Intentar actualizar primero, si falla crear nueva, si falla con 409 actualizar de nuevo
+        // IMPORTANTE: Si ya existe una sesión activa, simplemente la actualizamos y continuamos
+        // Esto permite que el estudiante pueda volver a entrar sin problemas
         try {
-            // Intentar actualizar sesión existente
+            // Intentar actualizar sesión existente primero (esto funcionará si existe o no)
             const rUpdateSesion = await fetch(
                 `${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${user.grado}&ciclo=eq.${CICLO_ACTUAL}`, 
                 {
