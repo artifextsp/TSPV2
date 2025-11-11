@@ -1337,7 +1337,8 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
             currentAppIndex: null,
             completedApps: 0,
             readingType: 'continua',
-            readingRegistered: false
+            readingRegistered: false,
+            sessionCheckInterval: null
         };
 
         // Datos embebidos
@@ -1411,7 +1412,14 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
                     return;
                 }
                 
-                setInterval(async () => {
+                // Iniciar verificación periódica de sesión
+                state.sessionCheckInterval = setInterval(async () => {
+                    // Si ya se registró la lectura, no verificar más (el estudiante puede continuar con desafíos)
+                    if (state.readingRegistered) {
+                        clearInterval(state.sessionCheckInterval);
+                        return;
+                    }
+                    
                     const { data: sesion } = await supabase
                         .from('sesiones_activas')
                         .select('sesion_activa')
@@ -1421,8 +1429,12 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
                         .maybeSingle();
                     
                     if (!sesion || !sesion.sesion_activa) {
-                        alert('Tu sesión ha sido cerrada. Redirigiendo...');
-                        window.location.href = '../index.html';
+                        // Solo redirigir si aún no se ha registrado la lectura
+                        if (!state.readingRegistered) {
+                            clearInterval(state.sessionCheckInterval);
+                            alert('Tu sesión ha sido cerrada. Redirigiendo...');
+                            window.location.href = '../index.html';
+                        }
                     }
                 }, 10000);
                 
@@ -1432,6 +1444,7 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
         }
 
         // Verificar estado de actividad con bloqueo total si ya se completó
+        // IMPORTANTE: Verifica por título de lectura para permitir nuevas plataformas con diferentes títulos
         async function checkActivityStatus() {
             try {
                 const { data, error } = await supabase
@@ -1440,8 +1453,10 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
                     .eq('codigo_estudiante', state.studentCode)
                     .eq('grado', state.grade)
                     .eq('ciclo', CICLO_ACTUAL)
+                    .eq('titulo_lectura', readingData.title)
                     .maybeSingle();
 
+                // Solo bloquear si encontró una lectura completada con el MISMO título
                 if (data && !data.habilitado) {
                     bloquearActividad();
                     alert('Esta actividad ya fue completada previamente.');
@@ -1662,6 +1677,12 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
                     .eq('ciclo', CICLO_ACTUAL);
                 
                 state.readingRegistered = true;
+                
+                // Detener la verificación periódica de sesión (ya no es necesaria)
+                if (state.sessionCheckInterval) {
+                    clearInterval(state.sessionCheckInterval);
+                    state.sessionCheckInterval = null;
+                }
 
                 submitBtn.textContent = '✅ Resultados Registrados';
                
