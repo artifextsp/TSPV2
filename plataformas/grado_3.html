@@ -1393,54 +1393,82 @@ Cuando la <span class="keyword">fábrica<span class="keyword-tooltip">Lugar dond
         }
 
         // Verificar que la sesión activa sea válida
+        // Con reintentos para manejar posibles condiciones de carrera
         async function verificarSesionActiva() {
-            try {
-                const { data, error } = await supabase
-                    .from('sesiones_activas')
-                    .select('*')
-                    .eq('codigo_estudiante', state.studentCode)
-                    .eq('grado', state.grade)
-                    .eq('ciclo', CICLO_ACTUAL)
-                    .eq('sesion_activa', true)
-                    .maybeSingle();
-
-                if (error) throw error;
-                
-                if (!data) {
-                    alert('Sesión no válida. Por favor ingresa desde el login.');
-                    window.location.href = '../index.html';
-                    return;
-                }
-                
-                // Iniciar verificación periódica de sesión
-                state.sessionCheckInterval = setInterval(async () => {
-                    // Si ya se registró la lectura, no verificar más (el estudiante puede continuar con desafíos)
-                    if (state.readingRegistered) {
-                        clearInterval(state.sessionCheckInterval);
-                        return;
-                    }
-                    
-                    const { data: sesion } = await supabase
+            let intentos = 0;
+            const maxIntentos = 3;
+            const delay = 1000; // 1 segundo entre intentos
+            
+            while (intentos < maxIntentos) {
+                try {
+                    const { data, error } = await supabase
                         .from('sesiones_activas')
-                        .select('sesion_activa')
+                        .select('*')
                         .eq('codigo_estudiante', state.studentCode)
                         .eq('grado', state.grade)
                         .eq('ciclo', CICLO_ACTUAL)
+                        .eq('sesion_activa', true)
                         .maybeSingle();
+
+                    if (error) throw error;
                     
-                    if (!sesion || !sesion.sesion_activa) {
-                        // Solo redirigir si aún no se ha registrado la lectura
-                        if (!state.readingRegistered) {
-                            clearInterval(state.sessionCheckInterval);
-                            alert('Tu sesión ha sido cerrada. Redirigiendo...');
-                            window.location.href = '../index.html';
-                        }
+                    if (data) {
+                        // Sesión encontrada, continuar normalmente
+                        break;
                     }
-                }, 10000);
-                
-            } catch (error) {
-                console.error('Error verificando sesión:', error);
+                    
+                    // Si no se encontró y aún hay intentos, esperar y reintentar
+                    if (intentos < maxIntentos - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        intentos++;
+                        continue;
+                    }
+                    
+                    // Si llegamos aquí, no se encontró después de todos los intentos
+                    alert('Sesión no válida. Por favor ingresa desde el login.');
+                    window.location.href = '../index.html';
+                    return;
+                    
+                } catch (error) {
+                    console.error('Error verificando sesión (intento ' + (intentos + 1) + '):', error);
+                    if (intentos < maxIntentos - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        intentos++;
+                        continue;
+                    } else {
+                        alert('Error al verificar sesión. Por favor intenta de nuevo desde el login.');
+                        window.location.href = '../index.html';
+                        return;
+                    }
+                }
             }
+            
+            // Si llegamos aquí, la sesión fue verificada exitosamente
+            // Iniciar verificación periódica de sesión
+            state.sessionCheckInterval = setInterval(async () => {
+                // Si ya se registró la lectura, no verificar más (el estudiante puede continuar con desafíos)
+                if (state.readingRegistered) {
+                    clearInterval(state.sessionCheckInterval);
+                    return;
+                }
+                
+                const { data: sesion } = await supabase
+                    .from('sesiones_activas')
+                    .select('sesion_activa')
+                    .eq('codigo_estudiante', state.studentCode)
+                    .eq('grado', state.grade)
+                    .eq('ciclo', CICLO_ACTUAL)
+                    .maybeSingle();
+                
+                if (!sesion || !sesion.sesion_activa) {
+                    // Solo redirigir si aún no se ha registrado la lectura
+                    if (!state.readingRegistered) {
+                        clearInterval(state.sessionCheckInterval);
+                        alert('Tu sesión ha sido cerrada. Redirigiendo...');
+                        window.location.href = '../index.html';
+                    }
+                }
+            }, 10000);
         }
 
         // Verificar estado de actividad con bloqueo total si ya se completó
