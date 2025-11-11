@@ -1145,8 +1145,8 @@ Al volver a casa se sintió pequeña, pero pidió ayuda. Todos juntaron las cosa
         // Con reintentos para manejar posibles condiciones de carrera
         async function verificarSesionActiva() {
             let intentos = 0;
-            const maxIntentos = 3;
-            const delay = 1000; // 1 segundo entre intentos
+            const maxIntentos = 5; // Aumentado a 5 intentos
+            const delay = 1500; // Aumentado a 1.5 segundos entre intentos para dar más tiempo
             
             while (intentos < maxIntentos) {
                 try {
