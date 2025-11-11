@@ -1265,7 +1265,7 @@
         let state = {
             studentCode: null,
             studentName: null,
-            grade: 8,
+            grade: 9,
             ciclo: 2,
             timerInterval: null,
             startTime: null,
@@ -1318,8 +1318,8 @@
                 if (error) throw error;
                 
                 if (data.grado !== state.grade) {
-                    alert('Este código pertenece a grado ' + data.grado + '. Redirigiendo...');
-                    window.location.href = 'grado_' + data.grado + '.html?student=' + state.studentCode;
+                    // Redirigir directamente sin alert que puede causar bucles
+                    window.location.replace('grado_' + data.grado + '.html?student=' + state.studentCode);
                     return;
                 }
                 

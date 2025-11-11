@@ -1124,8 +1124,8 @@ Al volver a casa se sintió pequeña, pero pidió ayuda. Todos juntaron las cosa
                 if (error) throw error;
                 
                 if (data.grado !== state.grade) {
-                    alert('Este código pertenece a grado ' + data.grado + '. Redirigiendo...');
-                    window.location.href = 'grado_' + data.grado + '.html?student=' + state.studentCode;
+                    // Redirigir directamente sin alert que puede causar bucles
+                    window.location.replace('grado_' + data.grado + '.html?student=' + state.studentCode);
                     return;
                 }
                 
