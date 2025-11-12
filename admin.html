@@ -195,9 +195,18 @@ async function liberarSesion() {
     }
 }
 
-async function verRegistrosBloqueantes() {
-    const codigo = document.getElementById('codigo5').value.trim().toUpperCase();
-    if (!codigo) return mostrarMsg('msg5', 'Ingresa un código', 'error');
+async function verRegistrosBloqueantes(codigoParam = null) {
+    // Si se pasa código como parámetro (desde eliminar), usarlo; si no, obtener del input
+    const codigo = codigoParam || document.getElementById('codigo5').value.trim().toUpperCase();
+    if (!codigo) {
+        mostrarMsg('msg5', 'Ingresa un código', 'error');
+        return;
+    }
+    
+    // Si se llamó desde eliminar, actualizar el input también
+    if (codigoParam) {
+        document.getElementById('codigo5').value = codigo;
+    }
     
     const listDiv = document.getElementById('registrosList');
     listDiv.style.display = 'block';
@@ -208,12 +217,22 @@ async function verRegistrosBloqueantes() {
         const rLectura = await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&select=*&order=created_at.desc`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
+        
+        if (!rLectura.ok) {
+            throw new Error('Error al obtener registros de lectura: ' + rLectura.statusText);
+        }
+        
         const lecturas = await rLectura.json() || [];
         
         // Obtener sesiones activas
         const rSesion = await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&select=*`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
+        
+        if (!rSesion.ok) {
+            throw new Error('Error al obtener sesiones activas: ' + rSesion.statusText);
+        }
+        
         const sesiones = await rSesion.json() || [];
         
         let html = '<h3 style="margin-bottom:15px;color:#333">📋 Registros Encontrados</h3>';
@@ -223,13 +242,14 @@ async function verRegistrosBloqueantes() {
             html += '<h4 style="margin:15px 0 10px 0;color:#667eea">📖 Lecturas Registradas:</h4>';
             lecturas.forEach(lec => {
                 const fecha = lec.created_at ? new Date(lec.created_at).toLocaleString('es-CO') : 'N/A';
+                const titulo = (lec.titulo_lectura || 'Sin título').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 html += `
                     <div class="registro-item">
                         <h4>${lec.titulo_lectura || 'Sin título'}</h4>
                         <p><strong>Grado:</strong> ${lec.grado} | <strong>Ciclo:</strong> ${lec.ciclo}</p>
                         <p><strong>Estado:</strong> ${lec.habilitado ? '✅ Habilitado' : '❌ Bloqueado (habilitado=false)'}</p>
                         <p><strong>Fecha:</strong> ${fecha}</p>
-                        <button class="btn btn-danger" onclick="eliminarLectura('${codigo}', ${lec.grado}, ${lec.ciclo}, '${(lec.titulo_lectura || '').replace(/'/g, "\\'")}')">
+                        <button class="btn btn-danger" onclick="eliminarLectura('${codigo}', ${lec.grado}, ${lec.ciclo}, '${titulo}')">
                             🗑️ Eliminar este registro
                         </button>
                     </div>
@@ -267,8 +287,9 @@ async function verRegistrosBloqueantes() {
         mostrarMsg('msg5', `✅ Registros cargados para ${codigo}`, 'success');
         
     } catch (e) {
+        console.error('Error en verRegistrosBloqueantes:', e);
         mostrarMsg('msg5', '❌ Error: ' + e.message, 'error');
-        listDiv.innerHTML = '<p style="color:#e74c3c">Error al cargar registros</p>';
+        listDiv.innerHTML = '<p style="color:#e74c3c">Error al cargar registros: ' + e.message + '</p>';
     }
 }
 
@@ -278,7 +299,7 @@ async function eliminarLectura(codigo, grado, ciclo, titulo) {
     try {
         // Construir query con todos los filtros
         let query = `${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`;
-        if (titulo) {
+        if (titulo && titulo !== 'Sin título') {
             query += `&titulo_lectura=eq.${encodeURIComponent(titulo)}`;
         }
         
@@ -291,13 +312,17 @@ async function eliminarLectura(codigo, grado, ciclo, titulo) {
         });
         
         if (r.ok) {
+            const data = await r.json().catch(() => []);
             mostrarMsg('msg5', '✅ Registro de lectura eliminado exitosamente', 'success');
-            // Recargar la lista
-            setTimeout(() => verRegistrosBloqueantes(), 1000);
+            // Recargar la lista pasando el código como parámetro
+            setTimeout(() => verRegistrosBloqueantes(codigo), 1000);
         } else {
-            mostrarMsg('msg5', '❌ Error al eliminar registro', 'error');
+            const errorText = await r.text().catch(() => 'Error desconocido');
+            console.error('Error al eliminar:', errorText);
+            mostrarMsg('msg5', '❌ Error al eliminar registro: ' + r.statusText, 'error');
         }
     } catch (e) {
+        console.error('Error en eliminarLectura:', e);
         mostrarMsg('msg5', '❌ Error: ' + e.message, 'error');
     }
 }
@@ -315,13 +340,17 @@ async function eliminarSesion(codigo, grado, ciclo) {
         });
         
         if (r.ok) {
+            const data = await r.json().catch(() => []);
             mostrarMsg('msg5', '✅ Sesión eliminada exitosamente', 'success');
-            // Recargar la lista
-            setTimeout(() => verRegistrosBloqueantes(), 1000);
+            // Recargar la lista pasando el código como parámetro
+            setTimeout(() => verRegistrosBloqueantes(codigo), 1000);
         } else {
-            mostrarMsg('msg5', '❌ Error al eliminar sesión', 'error');
+            const errorText = await r.text().catch(() => 'Error desconocido');
+            console.error('Error al eliminar sesión:', errorText);
+            mostrarMsg('msg5', '❌ Error al eliminar sesión: ' + r.statusText, 'error');
         }
     } catch (e) {
+        console.error('Error en eliminarSesion:', e);
         mostrarMsg('msg5', '❌ Error: ' + e.message, 'error');
     }
 }
@@ -329,46 +358,101 @@ async function eliminarSesion(codigo, grado, ciclo) {
 async function restauracionCompleta() {
     const codigo = document.getElementById('codigo4').value.trim().toUpperCase();
     const grado = document.getElementById('grado4').value;
-    const ciclo = document.getElementById('ciclo4').value;
+    const ciclo = document.getElementById('ciclo4').value || '1';
     
-    if (!codigo || !grado) return mostrarMsg('msg4', 'Completa todos los campos', 'error');
+    if (!codigo || !grado) {
+        mostrarMsg('msg4', 'Completa todos los campos (código y grado son obligatorios)', 'error');
+        return;
+    }
+    
+    mostrarMsg('msg4', '⏳ Procesando restauración completa...', 'success');
     
     try {
+        const resultados = {
+            password: false,
+            actividad: false,
+            sesion: false
+        };
+        
         // 1. Restaurar password
-        await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
-            method: 'PATCH',
-            headers: {
-                'apikey': KEY,
-                'Authorization': 'Bearer ' + KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password: 'TSP2025' })
-        });
+        try {
+            const rPassword = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': KEY,
+                    'Authorization': 'Bearer ' + KEY,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({ password: 'TSP2025' })
+            });
+            
+            if (rPassword.ok) {
+                const data = await rPassword.json().catch(() => []);
+                if (data && data.length > 0) {
+                    resultados.password = true;
+                }
+            }
+        } catch (e) {
+            console.error('Error restaurando password:', e);
+        }
         
-        // 2. Habilitar actividad
-        await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`, {
-            method: 'PATCH',
-            headers: {
-                'apikey': KEY,
-                'Authorization': 'Bearer ' + KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ habilitado: true })
-        });
+        // 2. Habilitar actividad (si existe)
+        try {
+            const rActividad = await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': KEY,
+                    'Authorization': 'Bearer ' + KEY,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({ habilitado: true })
+            });
+            
+            if (rActividad.ok) {
+                const data = await rActividad.json().catch(() => []);
+                if (data && data.length > 0) {
+                    resultados.actividad = true;
+                }
+            }
+        } catch (e) {
+            console.error('Error habilitando actividad:', e);
+        }
         
-        // 3. Liberar sesión
-        await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}`, {
-            method: 'PATCH',
-            headers: {
-                'apikey': KEY,
-                'Authorization': 'Bearer ' + KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ sesion_activa: false })
-        });
+        // 3. Liberar sesión (específica por grado y ciclo)
+        try {
+            const rSesion = await fetch(`${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${grado}&ciclo=eq.${ciclo}`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': KEY,
+                    'Authorization': 'Bearer ' + KEY,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({ sesion_activa: false })
+            });
+            
+            if (rSesion.ok) {
+                const data = await rSesion.json().catch(() => []);
+                if (data && data.length > 0) {
+                    resultados.sesion = true;
+                }
+            }
+        } catch (e) {
+            console.error('Error liberando sesión:', e);
+        }
         
-        mostrarMsg('msg4', '✅ Restauración completa exitosa para ' + codigo, 'success');
+        // Mostrar resultados
+        let mensaje = '✅ Restauración completa:\n';
+        mensaje += resultados.password ? '✅ Password restaurado\n' : '⚠️ Password: no se pudo actualizar (estudiante no encontrado?)\n';
+        mensaje += resultados.actividad ? '✅ Actividad habilitada\n' : '⚠️ Actividad: no se encontró registro para habilitar\n';
+        mensaje += resultados.sesion ? '✅ Sesión liberada\n' : '⚠️ Sesión: no se encontró sesión activa para este grado/ciclo\n';
+        
+        mostrarMsg('msg4', mensaje, resultados.password ? 'success' : 'error');
+        
     } catch (e) {
+        console.error('Error en restauracionCompleta:', e);
         mostrarMsg('msg4', '❌ Error: ' + e.message, 'error');
     }
 }
