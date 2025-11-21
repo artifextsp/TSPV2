@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consultar Usuario - Thinking Skills</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;display:flex;align-items:center;justify-content:center}
+.container{max-width:600px;width:100%;background:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,0.2);overflow:hidden}
+.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:40px;text-align:center}
+.header h1{font-size:28px;font-weight:600;margin-bottom:10px}
+.header p{font-size:16px;opacity:0.95}
+.content{padding:40px}
+.form-group{margin-bottom:25px}
+label{display:block;font-weight:600;color:#333;margin-bottom:8px;font-size:14px}
+input{width:100%;padding:15px;border:2px solid #e0e0e0;border-radius:12px;font-size:16px;transition:all 0.3s}
+input:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 4px rgba(102,126,234,0.1)}
+.btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:15px 30px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;width:100%;transition:all 0.3s;margin-top:10px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(102,126,234,0.4)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.alert{padding:15px;border-radius:12px;margin:20px 0;font-weight:500;display:none}
+.alert-info{background:#d1ecf1;color:#0c5460;border:2px solid #bee5eb}
+.alert-success{background:#d4edda;color:#155724;border:2px solid #c3e6cb}
+.alert-warning{background:#fff3cd;color:#856404;border:2px solid #ffeaa7}
+.alert-error{background:#f8d7da;color:#721c24;border:2px solid #f5c6cb}
+.result-card{background:#f8f9fa;border:2px solid #667eea;border-radius:12px;padding:25px;margin-top:20px;display:none}
+.result-title{color:#667eea;font-size:18px;font-weight:600;margin-bottom:15px;text-align:center}
+.result-item{background:white;padding:15px;border-radius:8px;margin-bottom:10px;border-left:4px solid #667eea}
+.result-label{font-size:13px;color:#666;margin-bottom:5px}
+.result-value{font-size:20px;font-weight:700;color:#333;word-break:break-all}
+.result-code{font-size:24px;color:#667eea;text-align:center;padding:15px;background:white;border-radius:8px;margin-top:15px;font-family:'Courier New',monospace;letter-spacing:2px}
+.hint{font-size:13px;color:#666;margin-top:8px;font-style:italic}
+.loading{text-align:center;padding:20px;color:#667eea;font-weight:600}
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid #667eea;border-top:3px solid transparent;border-radius:50%;animation:spin 1s linear infinite;margin-left:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.footer{text-align:center;padding:20px;color:#666;font-size:13px;border-top:1px solid #e0e0e0}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🔍 Consultar Usuario</h1>
+        <p>Ingresa el nombre completo del estudiante para obtener su código de acceso</p>
+    </div>
+
+    <div class="content">
+        <div class="alert" id="alertBox"></div>
+        
+        <div class="form-group">
+            <label for="nombreCompleto">Nombre Completo del Estudiante</label>
+            <input type="text" id="nombreCompleto" placeholder="Ej: Juan Pérez García" autocomplete="off" autofocus>
+            <div class="hint">Ingresa el nombre y apellidos del estudiante tal como aparece en el registro</div>
+        </div>
+
+        <button class="btn" id="btnBuscar" onclick="buscarUsuario()">
+            🔍 Buscar Usuario
+            <span id="spinner" class="spinner" style="display:none"></span>
+        </button>
+
+        <div id="resultCard" class="result-card">
+            <div class="result-title">✅ Usuario Encontrado</div>
+            
+            <div class="result-item">
+                <div class="result-label">Nombre Completo</div>
+                <div class="result-value" id="resultNombre"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Grado</div>
+                <div class="result-value" id="resultGrado"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Institución</div>
+                <div class="result-value" id="resultInstitucion"></div>
+            </div>
+            
+            <div style="margin-top:20px">
+                <div class="result-label" style="text-align:center;margin-bottom:10px">Código de Usuario</div>
+                <div class="result-code" id="resultCodigo"></div>
+            </div>
+            
+            <div style="margin-top:20px;text-align:center">
+                <button class="btn" onclick="copiarCodigo()" style="max-width:300px;margin:0 auto">
+                    📋 Copiar Código
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div style="margin-bottom:10px">
+            <a href="index.html" style="color:#667eea;text-decoration:none;font-weight:600">← Volver al Login</a>
+        </div>
+        Designed by <strong>Hansel Peña Diaz</strong> - 3143090748
+    </div>
+</div>
+
+<script>
+const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
+
+let estudianteEncontrado = null;
+
+function mostrarAlert(msg, tipo) {
+    const alert = document.getElementById('alertBox');
+    alert.className = 'alert alert-' + tipo;
+    alert.textContent = msg;
+    alert.style.display = 'block';
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 5000);
+}
+
+function ocultarAlert() {
+    document.getElementById('alertBox').style.display = 'none';
+}
+
+async function buscarUsuario() {
+    const nombreCompleto = document.getElementById('nombreCompleto').value.trim();
+    
+    if (!nombreCompleto) {
+        mostrarAlert('Por favor ingresa el nombre completo del estudiante', 'warning');
+        return;
+    }
+    
+    // Validar que tenga al menos 2 palabras
+    const palabras = nombreCompleto.split(/\s+/).filter(p => p.trim());
+    if (palabras.length < 2) {
+        mostrarAlert('Por favor ingresa el nombre completo (nombre y al menos un apellido)', 'warning');
+        return;
+    }
+    
+    const btnBuscar = document.getElementById('btnBuscar');
+    const spinner = document.getElementById('spinner');
+    const resultCard = document.getElementById('resultCard');
+    
+    btnBuscar.disabled = true;
+    spinner.style.display = 'inline-block';
+    resultCard.style.display = 'none';
+    ocultarAlert();
+    
+    try {
+        // Buscar por nombre y apellidos
+        // Intentar diferentes combinaciones de búsqueda
+        const nombreParts = palabras;
+        const nombre = nombreParts[0];
+        const apellidos = nombreParts.slice(1).join(' ');
+        
+        // Búsqueda 1: nombre exacto y apellidos exactos
+        let query = `${URL}/estudiantes?nombre=ilike.${encodeURIComponent(nombre)}&apellidos=ilike.${encodeURIComponent(apellidos)}&select=codigo_estudiante,nombre,apellidos,grado,codigo_institucion&limit=10`;
+        
+        let response = await fetch(query, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        
+        let estudiantes = await response.json() || [];
+        
+        // Si no encuentra, buscar por nombre completo en cualquier campo
+        if (estudiantes.length === 0) {
+            // Buscar por nombre completo (nombre + apellidos juntos)
+            const nombreCompletoBusqueda = nombreCompleto.replace(/\s+/g, ' ').trim();
+            query = `${URL}/estudiantes?select=codigo_estudiante,nombre,apellidos,grado,codigo_institucion&limit=50`;
+            
+            response = await fetch(query, {
+                headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+            });
+            
+            const todosEstudiantes = await response.json() || [];
+            
+            // Filtrar localmente por coincidencia de nombre completo
+            estudiantes = todosEstudiantes.filter(est => {
+                const nombreCompletoEst = `${est.nombre} ${est.apellidos}`.toLowerCase().trim();
+                const nombreCompletoLower = nombreCompletoBusqueda.toLowerCase().trim();
+                
+                // Coincidencia exacta o parcial
+                return nombreCompletoEst === nombreCompletoLower || 
+                       nombreCompletoEst.includes(nombreCompletoLower) ||
+                       nombreCompletoLower.includes(nombreCompletoEst);
+            });
+        }
+        
+        if (estudiantes.length === 0) {
+            mostrarAlert('No se encontró ningún estudiante con ese nombre. Verifica que el nombre esté escrito correctamente.', 'error');
+            btnBuscar.disabled = false;
+            spinner.style.display = 'none';
+            return;
+        }
+        
+        // Si hay múltiples resultados, mostrar el primero o el que coincida mejor
+        if (estudiantes.length > 1) {
+            // Buscar la coincidencia más exacta
+            const nombreCompletoLower = nombreCompleto.toLowerCase().trim();
+            const mejorCoincidencia = estudiantes.find(est => {
+                const nombreCompletoEst = `${est.nombre} ${est.apellidos}`.toLowerCase().trim();
+                return nombreCompletoEst === nombreCompletoLower;
+            }) || estudiantes[0];
+            
+            if (mejorCoincidencia !== estudiantes[0]) {
+                mostrarAlert(`Se encontraron ${estudiantes.length} estudiantes con nombres similares. Mostrando el que mejor coincide.`, 'info');
+            }
+            
+            estudianteEncontrado = mejorCoincidencia;
+        } else {
+            estudianteEncontrado = estudiantes[0];
+        }
+        
+        // Obtener nombre de la institución si existe
+        let nombreInstitucion = 'N/A';
+        if (estudianteEncontrado.codigo_institucion) {
+            try {
+                const rInst = await fetch(`${URL}/instituciones?codigo_institucion=eq.${estudianteEncontrado.codigo_institucion}&select=nombre&limit=1`, {
+                    headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+                });
+                const inst = await rInst.json();
+                if (inst && inst.length > 0) {
+                    nombreInstitucion = inst[0].nombre;
+                }
+            } catch (e) {
+                console.error('Error obteniendo institución:', e);
+            }
+        }
+        
+        // Mostrar resultados
+        document.getElementById('resultNombre').textContent = `${estudianteEncontrado.nombre} ${estudianteEncontrado.apellidos}`;
+        document.getElementById('resultGrado').textContent = `${estudianteEncontrado.grado}° Grado`;
+        document.getElementById('resultInstitucion').textContent = nombreInstitucion;
+        document.getElementById('resultCodigo').textContent = estudianteEncontrado.codigo_estudiante;
+        
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        mostrarAlert('✅ Usuario encontrado correctamente', 'success');
+        
+    } catch (error) {
+        console.error('Error buscando usuario:', error);
+        mostrarAlert('Error al buscar el usuario. Por favor intenta de nuevo.', 'error');
+    } finally {
+        btnBuscar.disabled = false;
+        spinner.style.display = 'none';
+    }
+}
+
+function copiarCodigo() {
+    if (!estudianteEncontrado) return;
+    
+    const codigo = estudianteEncontrado.codigo_estudiante;
+    
+    navigator.clipboard.writeText(codigo).then(() => {
+        mostrarAlert('✅ Código copiado al portapapeles', 'success');
+        
+        // Feedback visual
+        const btn = event.target;
+        const textoOriginal = btn.textContent;
+        btn.textContent = '✅ ¡Copiado!';
+        btn.style.background = 'linear-gradient(135deg, #28a745 0%, #34ce57 100%)';
+        
+        setTimeout(() => {
+            btn.textContent = textoOriginal;
+            btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        }, 2000);
+    }).catch(err => {
+        // Fallback: seleccionar texto
+        const tempInput = document.createElement('input');
+        tempInput.value = codigo;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        mostrarAlert('✅ Código copiado al portapapeles', 'success');
+    });
+}
+
+// Permitir búsqueda con Enter
+document.getElementById('nombreCompleto').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        buscarUsuario();
+    }
+});
+</script>
+
+</body>
+</html>
+
