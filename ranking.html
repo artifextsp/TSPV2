@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Ranking en Tiempo Real - TSP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid #fff;
+            color: #fff;
+        }
+        
+        .btn:hover {
+            background: #fff;
+            color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .btn-refresh {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid #fff;
+            padding: 10px 15px;
+        }
+        
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .auto-refresh input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .filters {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+        
+        .rankings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .ranking-card {
+            background: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+        
+        .ranking-card h2 {
+            color: #667eea;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .ranking-list {
+            list-style: none;
+        }
+        
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        
+        .ranking-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .ranking-item.position {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #667eea;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .ranking-item.position.first {
+            color: #FFD700;
+        }
+        
+        .ranking-item.position.second {
+            color: #C0C0C0;
+        }
+        
+        .ranking-item.position.third {
+            color: #CD7F32;
+        }
+        
+        .ranking-item.position.fourth {
+            color: #667eea;
+        }
+        
+        .ranking-item.info {
+            flex: 1;
+        }
+        
+        .ranking-item.name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        .ranking-item.details {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .ranking-item.value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #667eea;
+            min-width: 80px;
+            text-align: right;
+        }
+        
+        .apps-rankings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .last-update {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .refreshing {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>🏆</span>
+                <span>Ranking en Tiempo Real</span>
+            </h1>
+            <div class="header-controls">
+                <div class="auto-refresh">
+                    <label>
+                        <input type="checkbox" id="autoRefresh" checked>
+                        Auto-actualizar
+                    </label>
+                </div>
+                <button class="btn btn-refresh" onclick="cargarRankings()">
+                    🔄 Actualizar
+                </button>
+                <button class="btn" onclick="window.location.href='index.html'">
+                    ← Volver
+                </button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Grado:</label>
+                    <select id="filterGrado" onchange="cargarRankings()">
+                        <option value="">Todos los grados</option>
+                        <option value="1">1°</option>
+                        <option value="2">2°</option>
+                        <option value="3">3°</option>
+                        <option value="4">4°</option>
+                        <option value="5">5°</option>
+                        <option value="6">6°</option>
+                        <option value="7">7°</option>
+                        <option value="8">8°</option>
+                        <option value="9">9°</option>
+                        <option value="10">10°</option>
+                        <option value="11">11°</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Ciclo:</label>
+                    <select id="filterCiclo" onchange="cargarRankings()">
+                        <option value="">Todos los ciclos</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="loading" class="loading" style="display:none;">
+                Cargando rankings...
+            </div>
+            
+            <div id="rankingsContent"></div>
+            
+            <div class="last-update" id="lastUpdate">
+                Última actualización: --
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === CONFIGURACIÓN SUPABASE ===
+        const SUPABASE_URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTQyNzI3NywiZXhwIjoyMDc3MDAzMjc3fQ.ZCuQQs5vpRi9mhV0xZG_IRvpUmLDTzONvPrmqFf1ia8';
+
+        let autoRefreshInterval = null;
+        let isLoading = false;
+
+        // === CARGAR CICLOS ===
+        async function cargarCiclos() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/ciclos?select=id,numero_ciclo&order=numero_ciclo.asc`, {
+                    headers: { 'apikey': SUPABASE_KEY }
+                });
+                const ciclos = await res.json();
+                const select = document.getElementById('filterCiclo');
+                
+                // Obtener ciclos únicos de las tablas directamente (por si no hay tabla de ciclos)
+                try {
+                    const resLecturas = await fetch(`${SUPABASE_URL}/rest/v1/steam_lectura?select=ciclo&order=ciclo.desc&limit=1000`, {
+                        headers: { 'apikey': SUPABASE_KEY }
+                    });
+                    const lecturas = await resLecturas.json();
+                    const ciclosUnicos = [...new Set(lecturas.map(l => l.ciclo))].sort((a, b) => a - b);
+                    
+                    // Si hay ciclos en la tabla de ciclos, usarlos; si no, usar los encontrados en lecturas
+                    if (ciclos && ciclos.length > 0) {
+                        ciclos.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c.numero_ciclo; // Usar número de ciclo, no ID
+                            opt.textContent = `Ciclo ${c.numero_ciclo}`;
+                            select.appendChild(opt);
+                        });
+                    } else if (ciclosUnicos && ciclosUnicos.length > 0) {
+                        ciclosUnicos.forEach(numCiclo => {
+                            const opt = document.createElement('option');
+                            opt.value = numCiclo;
+                            opt.textContent = `Ciclo ${numCiclo}`;
+                            select.appendChild(opt);
+                        });
+                    } else {
+                        // Fallback: ciclos 1 y 2
+                        [1, 2].forEach(numCiclo => {
+                            const opt = document.createElement('option');
+                            opt.value = numCiclo;
+                            opt.textContent = `Ciclo ${numCiclo}`;
+                            select.appendChild(opt);
+                        });
+                    }
+                } catch (err2) {
+                    console.error('Error obteniendo ciclos de lecturas:', err2);
+                    // Fallback: ciclos 1 y 2
+                    [1, 2].forEach(numCiclo => {
+                        const opt = document.createElement('option');
+                        opt.value = numCiclo;
+                        opt.textContent = `Ciclo ${numCiclo}`;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('Error cargando ciclos:', err);
+                // Fallback: ciclos 1 y 2
+                const select = document.getElementById('filterCiclo');
+                [1, 2].forEach(numCiclo => {
+                    const opt = document.createElement('option');
+                    opt.value = numCiclo;
+                    opt.textContent = `Ciclo ${numCiclo}`;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        // === CARGAR RANKINGS ===
+        async function cargarRankings() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const loadingEl = document.getElementById('loading');
+            const contentEl = document.getElementById('rankingsContent');
+            const grado = document.getElementById('filterGrado').value;
+            const ciclo = document.getElementById('filterCiclo').value;
+            
+            loadingEl.style.display = 'block';
+            contentEl.innerHTML = '';
+            
+            try {
+                // Obtener todos los rankings
+                const [
+                    velocidadSimple,
+                    comprension,
+                    velocidadEfectiva,
+                    creatividad,
+                    aplicaciones
+                ] = await Promise.all([
+                    getRankingVelocidadSimple(grado, ciclo),
+                    getRankingComprension(grado, ciclo),
+                    getRankingVelocidadEfectiva(grado, ciclo),
+                    getRankingCreatividad(grado, ciclo),
+                    getRankingsAplicaciones(grado, ciclo)
+                ]);
+                
+                // Renderizar rankings
+                contentEl.innerHTML = `
+                    <div class="rankings-grid">
+                        ${renderRankingCard('⚡ Velocidad Simple', velocidadSimple, 'p/m', 'velocidad_simple')}
+                        ${renderRankingCard('📊 Comprensión', comprension, '%', 'comprension')}
+                        ${renderRankingCard('🚀 Velocidad Efectiva', velocidadEfectiva, 'p/m', 'velocidad_efectiva')}
+                        ${renderRankingCard('🎨 Creatividad', creatividad, '%', 'porcentaje')}
+                    </div>
+                    
+                    <div class="apps-rankings">
+                        ${renderAppsRankings(aplicaciones)}
+                    </div>
+                `;
+                
+                // Actualizar última actualización
+                document.getElementById('lastUpdate').textContent = 
+                    `Última actualización: ${new Date().toLocaleString('es-CO')}`;
+                
+            } catch (error) {
+                console.error('Error cargando rankings:', error);
+                contentEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>Error al cargar los rankings. Por favor intenta de nuevo.</p>
+                    </div>
+                `;
+            } finally {
+                loadingEl.style.display = 'none';
+                isLoading = false;
+            }
+        }
+
+        // === OBTENER RANKING VELOCIDAD SIMPLE ===
+        async function getRankingVelocidadSimple(grado, ciclo) {
+            try {
+                // Obtener todas las lecturas con filtros
+                let query = `${SUPABASE_URL}/rest/v1/steam_lectura?select=codigo_estudiante,velocidad_simple,grado,ciclo&velocidad_simple=gt.0`;
+                
+                if (grado) query += `&grado=eq.${grado}`;
+                if (ciclo) query += `&ciclo=eq.${ciclo}`;
+                
+                query += `&order=velocidad_simple.desc&limit=100`;
+                
+                const res = await fetch(query, { headers: { 'apikey': SUPABASE_KEY } });
+                const data = await res.json();
+                
+                if (!data || data.length === 0) return [];
+                
+                // Agrupar por estudiante y tomar el mejor resultado
+                const estudiantesMap = new Map();
+                const codigosEstudiantes = [...new Set(data.map(item => item.codigo_estudiante))];
+                
+                // Obtener información de estudiantes
+                const estudiantesQuery = `${SUPABASE_URL}/rest/v1/estudiantes?select=codigo_estudiante,nombre,apellidos,grado&codigo_estudiante=in.(${codigosEstudiantes.join(',')})`;
+                const resEstudiantes = await fetch(estudiantesQuery, { headers: { 'apikey': SUPABASE_KEY } });
+                const estudiantes = await resEstudiantes.json();
+                const estudiantesMap2 = new Map(estudiantes.map(e => [e.codigo_estudiante, e]));
+                
+                data.forEach(item => {
+                    const codigo = item.codigo_estudiante;
+                    if (!estudiantesMap.has(codigo) || estudiantesMap.get(codigo).valor < item.velocidad_simple) {
+                        const estudiante = estudiantesMap2.get(codigo);
+                        estudiantesMap.set(codigo, {
+                            codigo: codigo,
+                            nombre: estudiante ? `${estudiante.nombre} ${estudiante.apellidos}` : codigo,
+                            valor: item.velocidad_simple,
+                            grado: item.grado
+                        });
+                    }
+                });
+                
+                return Array.from(estudiantesMap.values())
+                    .sort((a, b) => b.valor - a.valor)
+                    .slice(0, 3);
+            } catch (error) {
+                console.error('Error en getRankingVelocidadSimple:', error);
+                return [];
+            }
+        }
+
+        // === OBTENER RANKING COMPRENSIÓN ===
+        async function getRankingComprension(grado, ciclo) {
+            try {
+                let query = `${SUPABASE_URL}/rest/v1/steam_lectura?select=codigo_estudiante,comprension,grado,ciclo&comprension=gt.0`;
+                
+                if (grado) query += `&grado=eq.${grado}`;
+                if (ciclo) query += `&ciclo=eq.${ciclo}`;
+                
+                query += `&order=comprension.desc&limit=100`;
+                
+                const res = await fetch(query, { headers: { 'apikey': SUPABASE_KEY } });
+                const data = await res.json();
+                
+                if (!data || data.length === 0) return [];
+                
+                const estudiantesMap = new Map();
+                const codigosEstudiantes = [...new Set(data.map(item => item.codigo_estudiante))];
+                
+                const estudiantesQuery = `${SUPABASE_URL}/rest/v1/estudiantes?select=codigo_estudiante,nombre,apellidos,grado&codigo_estudiante=in.(${codigosEstudiantes.join(',')})`;
+                const resEstudiantes = await fetch(estudiantesQuery, { headers: { 'apikey': SUPABASE_KEY } });
+                const estudiantes = await resEstudiantes.json();
+                const estudiantesMap2 = new Map(estudiantes.map(e => [e.codigo_estudiante, e]));
+                
+                data.forEach(item => {
+                    const codigo = item.codigo_estudiante;
+                    if (!estudiantesMap.has(codigo) || estudiantesMap.get(codigo).valor < item.comprension) {
+                        const estudiante = estudiantesMap2.get(codigo);
+                        estudiantesMap.set(codigo, {
+                            codigo: codigo,
+                            nombre: estudiante ? `${estudiante.nombre} ${estudiante.apellidos}` : codigo,
+                            valor: item.comprension,
+                            grado: item.grado
+                        });
+                    }
+                });
+                
+                return Array.from(estudiantesMap.values())
+                    .sort((a, b) => b.valor - a.valor)
+                    .slice(0, 3);
+            } catch (error) {
+                console.error('Error en getRankingComprension:', error);
+                return [];
+            }
+        }
+
+        // === OBTENER RANKING VELOCIDAD EFECTIVA ===
+        async function getRankingVelocidadEfectiva(grado, ciclo) {
+            try {
+                let query = `${SUPABASE_URL}/rest/v1/steam_lectura?select=codigo_estudiante,velocidad_efectiva,grado,ciclo&velocidad_efectiva=gt.0`;
+                
+                if (grado) query += `&grado=eq.${grado}`;
+                if (ciclo) query += `&ciclo=eq.${ciclo}`;
+                
+                query += `&order=velocidad_efectiva.desc&limit=100`;
+                
+                const res = await fetch(query, { headers: { 'apikey': SUPABASE_KEY } });
+                const data = await res.json();
+                
+                if (!data || data.length === 0) return [];
+                
+                const estudiantesMap = new Map();
+                const codigosEstudiantes = [...new Set(data.map(item => item.codigo_estudiante))];
+                
+                const estudiantesQuery = `${SUPABASE_URL}/rest/v1/estudiantes?select=codigo_estudiante,nombre,apellidos,grado&codigo_estudiante=in.(${codigosEstudiantes.join(',')})`;
+                const resEstudiantes = await fetch(estudiantesQuery, { headers: { 'apikey': SUPABASE_KEY } });
+                const estudiantes = await resEstudiantes.json();
+                const estudiantesMap2 = new Map(estudiantes.map(e => [e.codigo_estudiante, e]));
+                
+                data.forEach(item => {
+                    const codigo = item.codigo_estudiante;
+                    if (!estudiantesMap.has(codigo) || estudiantesMap.get(codigo).valor < item.velocidad_efectiva) {
+                        const estudiante = estudiantesMap2.get(codigo);
+                        estudiantesMap.set(codigo, {
+                            codigo: codigo,
+                            nombre: estudiante ? `${estudiante.nombre} ${estudiante.apellidos}` : codigo,
+                            valor: item.velocidad_efectiva,
+                            grado: item.grado
+                        });
+                    }
+                });
+                
+                return Array.from(estudiantesMap.values())
+                    .sort((a, b) => b.valor - a.valor)
+                    .slice(0, 3);
+            } catch (error) {
+                console.error('Error en getRankingVelocidadEfectiva:', error);
+                return [];
+            }
+        }
+
+        // === OBTENER RANKING CREATIVIDAD ===
+        async function getRankingCreatividad(grado, ciclo) {
+            try {
+                let query = `${SUPABASE_URL}/rest/v1/steam_desafios?select=codigo_estudiante,porcentaje,grado,ciclo&porcentaje=gt.0`;
+                
+                if (grado) query += `&grado=eq.${grado}`;
+                if (ciclo) query += `&ciclo=eq.${ciclo}`;
+                
+                query += `&order=porcentaje.desc&limit=100`;
+                
+                const res = await fetch(query, { headers: { 'apikey': SUPABASE_KEY } });
+                const data = await res.json();
+                
+                if (!data || data.length === 0) return [];
+                
+                const estudiantesMap = new Map();
+                const codigosEstudiantes = [...new Set(data.map(item => item.codigo_estudiante))];
+                
+                const estudiantesQuery = `${SUPABASE_URL}/rest/v1/estudiantes?select=codigo_estudiante,nombre,apellidos,grado&codigo_estudiante=in.(${codigosEstudiantes.join(',')})`;
+                const resEstudiantes = await fetch(estudiantesQuery, { headers: { 'apikey': SUPABASE_KEY } });
+                const estudiantes = await resEstudiantes.json();
+                const estudiantesMap2 = new Map(estudiantes.map(e => [e.codigo_estudiante, e]));
+                
+                data.forEach(item => {
+                    const codigo = item.codigo_estudiante;
+                    if (!estudiantesMap.has(codigo) || estudiantesMap.get(codigo).valor < item.porcentaje) {
+                        const estudiante = estudiantesMap2.get(codigo);
+                        estudiantesMap.set(codigo, {
+                            codigo: codigo,
+                            nombre: estudiante ? `${estudiante.nombre} ${estudiante.apellidos}` : codigo,
+                            valor: item.porcentaje,
+                            grado: item.grado
+                        });
+                    }
+                });
+                
+                return Array.from(estudiantesMap.values())
+                    .sort((a, b) => b.valor - a.valor)
+                    .slice(0, 3);
+            } catch (error) {
+                console.error('Error en getRankingCreatividad:', error);
+                return [];
+            }
+        }
+
+        // === OBTENER RANKINGS APLICACIONES ===
+        async function getRankingsAplicaciones(grado, ciclo) {
+            try {
+                // Usar 'aplicacion' como campo (según la estructura de la BD)
+                let query = `${SUPABASE_URL}/rest/v1/aplicaciones?select=codigo_estudiante,efectividad,aplicacion,grado,ciclo&efectividad=gt.0`;
+                
+                if (grado) query += `&grado=eq.${grado}`;
+                if (ciclo) query += `&ciclo=eq.${ciclo}`;
+                
+                query += `&order=efectividad.desc&limit=200`;
+                
+                const res = await fetch(query, { headers: { 'apikey': SUPABASE_KEY } });
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    return { porAplicacion: {}, promedio: [] };
+                }
+                
+                // Agrupar por aplicación y estudiante
+                const appsMap = new Map();
+                const estudiantesAppsMap = new Map(); // Para promedio de las 3 apps
+                const codigosEstudiantes = [...new Set(data.map(item => item.codigo_estudiante))];
+                
+                // Obtener información de estudiantes
+                const estudiantesQuery = `${SUPABASE_URL}/rest/v1/estudiantes?select=codigo_estudiante,nombre,apellidos,grado&codigo_estudiante=in.(${codigosEstudiantes.join(',')})`;
+                const resEstudiantes = await fetch(estudiantesQuery, { headers: { 'apikey': SUPABASE_KEY } });
+                const estudiantes = await resEstudiantes.json();
+                const estudiantesMap2 = new Map(estudiantes.map(e => [e.codigo_estudiante, e]));
+                
+                data.forEach(item => {
+                    // Usar 'aplicacion' como campo (puede ser 'nombre_aplicacion' en algunas versiones)
+                    const appNombre = item.aplicacion || item.nombre_aplicacion || 'Aplicación';
+                    const codigo = item.codigo_estudiante;
+                    const estudiante = estudiantesMap2.get(codigo);
+                    
+                    // Por aplicación
+                    if (!appsMap.has(appNombre)) {
+                        appsMap.set(appNombre, new Map());
+                    }
+                    const appEstudiantes = appsMap.get(appNombre);
+                    if (!appEstudiantes.has(codigo) || appEstudiantes.get(codigo).efectividad < item.efectividad) {
+                        appEstudiantes.set(codigo, {
+                            codigo: codigo,
+                            nombre: estudiante ? `${estudiante.nombre} ${estudiante.apellidos}` : codigo,
+                            efectividad: item.efectividad,
+                            grado: item.grado
+                        });
+                    }
+                    
+                    // Para promedio de las 3 apps
+                    if (!estudiantesAppsMap.has(codigo)) {
+                        estudiantesAppsMap.set(codigo, {
+                            codigo: codigo,
+                            nombre: estudiante ? `${estudiante.nombre} ${estudiante.apellidos}` : codigo,
+                            apps: {},
+                            grado: item.grado
+                        });
+                    }
+                    // Agrupar por aplicación para el promedio (tomar el mejor resultado por aplicación)
+                    const estApps = estudiantesAppsMap.get(codigo).apps;
+                    if (!estApps[appNombre] || estApps[appNombre] < item.efectividad) {
+                        estApps[appNombre] = item.efectividad;
+                    }
+                });
+                
+                // Convertir a arrays y ordenar
+                const appsRankings = {};
+                appsMap.forEach((estudiantes, appNombre) => {
+                    appsRankings[appNombre] = Array.from(estudiantes.values())
+                        .sort((a, b) => b.efectividad - a.efectividad)
+                        .slice(0, 4);
+                });
+                
+                // Calcular promedio de las 3 apps (solo si tiene 3 aplicaciones diferentes)
+                const promedioRanking = [];
+                estudiantesAppsMap.forEach((est, codigo) => {
+                    const appsValues = Object.values(est.apps);
+                    if (appsValues.length >= 3) {
+                        // Tomar las 3 mejores aplicaciones
+                        appsValues.sort((a, b) => b - a);
+                        const promedio = appsValues.slice(0, 3).reduce((sum, val) => sum + val, 0) / 3;
+                        promedioRanking.push({
+                            codigo: codigo,
+                            nombre: est.nombre,
+                            valor: promedio,
+                            grado: est.grado
+                        });
+                    }
+                });
+                
+                promedioRanking.sort((a, b) => b.valor - a.valor);
+                
+                return {
+                    porAplicacion: appsRankings,
+                    promedio: promedioRanking.slice(0, 4)
+                };
+            } catch (error) {
+                console.error('Error en getRankingsAplicaciones:', error);
+                return { porAplicacion: {}, promedio: [] };
+            }
+        }
+
+        // === RENDERIZAR TARJETA DE RANKING ===
+        function renderRankingCard(title, data, unit, fieldName) {
+            if (!data || data.length === 0) {
+                return `
+                    <div class="ranking-card">
+                        <h2>${title}</h2>
+                        <div class="empty-state">
+                            <p>No hay datos disponibles</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const positions = ['🥇', '🥈', '🥉'];
+            const positionClasses = ['first', 'second', 'third'];
+            
+            return `
+                <div class="ranking-card">
+                    <h2>${title}</h2>
+                    <ul class="ranking-list">
+                        ${data.map((item, index) => `
+                            <li class="ranking-item">
+                                <span class="position ${positionClasses[index] || ''}">${positions[index] || (index + 1)}</span>
+                                <div class="info">
+                                    <div class="name">${item.nombre}</div>
+                                    <div class="details">${item.codigo} - Grado ${item.grado}°</div>
+                                </div>
+                                <div class="value">${Math.round(item.valor)}${unit}</div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // === RENDERIZAR RANKINGS DE APLICACIONES ===
+        function renderAppsRankings(aplicaciones) {
+            if (!aplicaciones || !aplicaciones.porAplicacion) {
+                return '<div class="empty-state">No hay datos de aplicaciones disponibles</div>';
+            }
+            
+            let html = '';
+            
+            // Rankings por aplicación
+            Object.keys(aplicaciones.porAplicacion).forEach(appNombre => {
+                const ranking = aplicaciones.porAplicacion[appNombre];
+                if (ranking && ranking.length > 0) {
+                    html += `
+                        <div class="ranking-card">
+                            <h2>🎮 ${appNombre}</h2>
+                            <ul class="ranking-list">
+                                ${ranking.map((item, index) => `
+                                    <li class="ranking-item">
+                                        <span class="position ${index < 3 ? ['first', 'second', 'third'][index] : 'fourth'}">${index + 1}</span>
+                                        <div class="info">
+                                            <div class="name">${item.nombre}</div>
+                                            <div class="details">${item.codigo} - Grado ${item.grado}°</div>
+                                        </div>
+                                        <div class="value">${Math.round(item.efectividad)}%</div>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+            });
+            
+            // Ranking promedio de las 3 apps
+            if (aplicaciones.promedio && aplicaciones.promedio.length > 0) {
+                html += `
+                    <div class="ranking-card">
+                        <h2>⭐ Promedio General (3 Apps)</h2>
+                        <ul class="ranking-list">
+                            ${aplicaciones.promedio.map((item, index) => `
+                                <li class="ranking-item">
+                                    <span class="position ${index < 3 ? ['first', 'second', 'third'][index] : 'fourth'}">${index + 1}</span>
+                                    <div class="info">
+                                        <div class="name">${item.nombre}</div>
+                                        <div class="details">${item.codigo} - Grado ${item.grado}°</div>
+                                    </div>
+                                    <div class="value">${Math.round(item.valor)}%</div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            return html || '<div class="empty-state">No hay datos de aplicaciones disponibles</div>';
+        }
+
+        // === CONFIGURAR AUTO-ACTUALIZACIÓN ===
+        function setupAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+            
+            if (checkbox.checked) {
+                startAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Limpiar intervalo anterior si existe
+            autoRefreshInterval = setInterval(() => {
+                const contentEl = document.getElementById('rankingsContent');
+                contentEl.classList.add('refreshing');
+                cargarRankings().then(() => {
+                    setTimeout(() => {
+                        contentEl.classList.remove('refreshing');
+                    }, 500);
+                });
+            }, 30000); // Actualizar cada 30 segundos
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // === INICIALIZACIÓN ===
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Obtener parámetros de la URL (grado y ciclo)
+            const urlParams = new URLSearchParams(window.location.search);
+            const gradoParam = urlParams.get('grado');
+            const cicloParam = urlParams.get('ciclo');
+            
+            // Si hay parámetros, establecer los filtros
+            if (gradoParam) {
+                document.getElementById('filterGrado').value = gradoParam;
+            }
+            
+            await cargarCiclos();
+            
+            // Si hay ciclo en parámetros, establecer el filtro directamente
+            if (cicloParam) {
+                const cicloSelect = document.getElementById('filterCiclo');
+                // El cicloParam ya es el número del ciclo, solo establecerlo
+                cicloSelect.value = cicloParam;
+            }
+            
+            await cargarRankings();
+            setupAutoRefresh();
+        });
+    </script>
+</body>
+</html>
+
