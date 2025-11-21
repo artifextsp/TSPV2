@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Informe Digital - Thinking Skills</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.container{max-width:900px;margin:0 auto;background:white;border-radius:20px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;border-radius:15px;margin-bottom:30px;text-align:center}
+.header h1{font-size:2em;margin-bottom:10px}
+.header p{font-size:1.1em;opacity:0.9}
+.section{margin:30px 0;padding:25px;background:#f8f9fa;border-radius:12px;border-left:4px solid #667eea}
+.section-title{font-size:1.4em;color:#667eea;font-weight:700;margin-bottom:15px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:15px 0}
+.info-item{padding:12px;background:white;border-radius:8px}
+.info-label{font-weight:600;color:#666;font-size:0.9em;margin-bottom:5px}
+.info-value{font-size:1.1em;color:#333}
+.badge{display:inline-block;padding:6px 16px;border-radius:20px;font-weight:600;font-size:0.9em}
+.badge-verde{background:#d4edda;color:#155724}
+.badge-rojo{background:#f8d7da;color:#721c24}
+.badge-azul{background:#d1ecf1;color:#0c5460}
+.apps-grid{display:grid;gap:15px;margin-top:15px}
+.app-card{background:white;padding:20px;border-radius:12px;border:2px solid #e0e0e0}
+.app-title{font-weight:700;color:#667eea;margin-bottom:10px;font-size:1.1em}
+.actions{display:flex;gap:15px;justify-content:center;margin:40px 0;flex-wrap:wrap}
+.btn{background:#667eea;color:white;padding:14px 28px;border:none;border-radius:10px;cursor:pointer;font-size:16px;font-weight:600;transition:all 0.3s;text-decoration:none;display:inline-block}
+.btn:hover{background:#5568d3;transform:translateY(-2px);box-shadow:0 8px 20px rgba(102,126,234,0.3)}
+.btn-success{background:#27ae60}
+.btn-success:hover{background:#229954}
+.btn-whatsapp{background:#25D366}
+.btn-whatsapp:hover{background:#1fb855}
+.btn-purple{background:#764ba2}
+.btn-purple:hover{background:#5a3a7a}
+.footer{text-align:center;margin-top:40px;padding-top:20px;border-top:2px solid #eee;color:#666;font-size:14px}
+.loading{text-align:center;padding:60px;font-size:1.2em;color:#667eea}
+.error{background:#f8d7da;color:#721c24;padding:20px;border-radius:12px;text-align:center;margin:20px 0}
+.metric{text-align:center;padding:15px;background:white;border-radius:10px}
+.metric-value{font-size:2em;font-weight:700;color:#667eea}
+.metric-label{font-size:0.9em;color:#666;margin-top:5px}
+@media (max-width: 768px){
+    .container{padding:20px}
+    .info-grid{grid-template-columns:1fr}
+    .actions{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loading" class="loading">
+        Cargando informe... 
+    </div>
+    
+    <div id="error" style="display:none"></div>
+    
+    <div id="contenido" style="display:none">
+        <!-- Contenido se genera dinámicamente -->
+    </div>
+</div>
+
+<script>
+const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
+
+let datosInforme = null;
+let cicloInforme = null;
+
+async function cargarInforme() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (!token) {
+        mostrarError('Token no válido. El link puede estar incorrecto.');
+        return;
+    }
+    
+    try {
+        // Obtener informe
+        const r = await fetch(`${URL}/informes_digitales?token=eq.${token}&activo=eq.true`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        
+        if (!r.ok) throw new Error('Error al cargar informe');
+        
+        const informes = await r.json();
+        
+        if (!informes || informes.length === 0) {
+            mostrarError('Informe no encontrado o ha expirado.');
+            return;
+        }
+        
+        const informe = informes[0];
+        
+        // Verificar expiración
+        if (new Date(informe.expira) < new Date()) {
+            mostrarError('Este informe ha expirado.');
+            return;
+        }
+        
+        // Incrementar contador de vistas
+        await fetch(`${URL}/informes_digitales?id=eq.${informe.id}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                vistas: (informe.vistas || 0) + 1,
+                ultima_vista: new Date().toISOString()
+            })
+        });
+        
+        datosInforme = informe.datos_json;
+        cicloInforme = informe.ciclo;
+        
+        mostrarInforme(informe);
+        
+    } catch (e) {
+        console.error(e);
+        mostrarError('Error al cargar el informe: ' + e.message);
+    }
+}
+
+function mostrarError(mensaje) {
+    document.getElementById('loading').style.display = 'none';
+    const errorDiv = document.getElementById('error');
+    errorDiv.className = 'error';
+    errorDiv.textContent = 'Error ' + mensaje;
+    errorDiv.style.display = 'block';
+}
+
+function getEstadoMensualidad(estado) {
+    if (estado === 'becado') return { texto: 'BECADO', color: 'verde' };
+    if (estado === 'al dia') return { texto: 'AL DIA', color: 'verde' };
+    return { texto: 'PENDIENTE', color: 'rojo' };
+}
+
+function calcularVocabulario(lectura) {
+    if (lectura.preguntas_vocabulario_totales && lectura.preguntas_vocabulario_totales > 0) {
+        const porcentaje = Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100);
+        return `${porcentaje}%`;
+    }
+    return 'N/A';
+}
+
+// === FUNCIÓN: Obtener Lexile ===
+function obtenerLexile(lectura) {
+    if (lectura.lexile) return lectura.lexile;
+    if (lectura.datos_json) {
+        try {
+            const datos = typeof lectura.datos_json === 'string' ? JSON.parse(lectura.datos_json) : lectura.datos_json;
+            if (datos.reading && datos.reading.lexile) return datos.reading.lexile;
+        } catch (e) {
+            console.warn('Error al parsear datos_json:', e);
+        }
+    }
+    return null;
+}
+
+// === DATOS: Tabla Maestra de Referencia (Velocidad y Comprensión) ===
+const TABLA_MAESTRA_REFERENCIA = [
+    { grado: 2, velocidad: '40-60', comprension: '60-80', velocidadEfectiva: '24-48', fuente: 'EGRA + PROLEC-R' },
+    { grado: 3, velocidad: '50-70', comprension: '65-85', velocidadEfectiva: '32.5-59.5', fuente: 'EGRA + PROLEC-R' },
+    { grado: 4, velocidad: '60-80', comprension: '70-90', velocidadEfectiva: '42-72', fuente: 'PROLEC-R' },
+    { grado: 5, velocidad: '70-90', comprension: '75-95', velocidadEfectiva: '52.5-85.5', fuente: 'PROLEC-R' },
+    { grado: 6, velocidad: '80-100', comprension: '80-95', velocidadEfectiva: '64-95', fuente: 'PROLEC-R' },
+    { grado: 7, velocidad: '90-110', comprension: '80-95', velocidadEfectiva: '72-104.5', fuente: 'PROLEC-R' },
+    { grado: 8, velocidad: '100-120', comprension: '80-95', velocidadEfectiva: '80-114', fuente: 'PROLEC-R' },
+    { grado: 9, velocidad: '110-130', comprension: '80-95', velocidadEfectiva: '88-123.5', fuente: 'PROLEC-R' },
+    { grado: 10, velocidad: '120-140', comprension: '80-95', velocidadEfectiva: '96-133', fuente: 'Evalúa-10' },
+    { grado: 11, velocidad: '130-150', comprension: '80-95', velocidadEfectiva: '104-142.5', fuente: 'Evalúa-10' }
+];
+
+// === DATOS: Tabla de Rangos Lexile por Grado ===
+const TABLA_LEXILE_REFERENCIA = [
+    { grado: 1, rango: '200L-400L', lectura: 'Textos muy simples' },
+    { grado: 2, rango: '300L-500L', lectura: 'Textos simples' },
+    { grado: 3, rango: '400L-600L', lectura: 'Textos básicos' },
+    { grado: 4, rango: '500L-700L', lectura: 'Textos intermedios' },
+    { grado: 5, rango: '600L-800L', lectura: 'Textos más complejos' },
+    { grado: 6, rango: '700L-900L', lectura: 'Textos avanzados' },
+    { grado: 7, rango: '800L-1000L', lectura: 'Textos de nivel medio' },
+    { grado: 8, rango: '900L-1100L', lectura: 'Textos de nivel alto' },
+    { grado: 9, rango: '1000L-1200L', lectura: 'Textos de nivel superior' },
+    { grado: 10, rango: '1100L-1300L', lectura: 'Textos de nivel universitario' },
+    { grado: '11-12', rango: '1250L-1400L', lectura: 'Nivel cercano a universidad' }
+];
+
+// === FUNCIÓN: Generar HTML de Tablas de Referencia ===
+function generarHTMLTablasReferencia(gradoEstudiante) {
+    // Verificar que las constantes estén definidas
+    if (!TABLA_MAESTRA_REFERENCIA || !TABLA_LEXILE_REFERENCIA) {
+        console.error('Error: Las constantes de tablas de referencia no están definidas');
+        return '';
+    }
+    
+    let html = `
+        <div id="tablasReferencia" style="display:block;margin-top:30px" class="section">
+            <div class="section-title" style="background:#f0f0f0;padding:12px;margin:20px 0 15px 0;font-weight:600;border-left:4px solid #667eea;text-align:center">
+                📊 TABLAS DE REFERENCIA PARA INTERPRETACIÓN
+            </div>
+            
+            <!-- Tabla 1: Velocidad y Comprensión -->
+            <div style="margin:20px 0">
+                <h3 style="color:#667eea;font-size:14px;margin-bottom:10px;font-weight:600">Tabla 1: Rangos de Referencia por Grado (Velocidad y Comprensión)</h3>
+                <div style="overflow-x:auto">
+                    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+                        <thead>
+                            <tr style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white">
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Grado</th>
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Velocidad Simple Promedio (ppm)</th>
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">% Comprensión Promedio</th>
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Velocidad Efectiva Promedio (VE = ppm x %comp)</th>
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Fuente Base de Rango</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    TABLA_MAESTRA_REFERENCIA.forEach((row, index) => {
+        const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+        html += `
+            <tr style="background:${bgColor}">
+                <td style="padding:10px;font-size:12px;font-weight:600;color:#333">${row.grado}°</td>
+                <td style="padding:10px;font-size:12px;color:#666">${row.velocidad}</td>
+                <td style="padding:10px;font-size:12px;color:#666">${row.comprension}%</td>
+                <td style="padding:10px;font-size:12px;color:#666">${row.velocidadEfectiva}</td>
+                <td style="padding:10px;font-size:11px;color:#666">${row.fuente}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Tabla 2: Rangos Lexile -->
+            <div style="margin:20px 0">
+                <h3 style="color:#667eea;font-size:14px;margin-bottom:5px;font-weight:600">Tabla 2: Rangos Lexile por Grado Escolar (Aproximado)</h3>
+                <p style="font-size:11px;color:#666;margin-bottom:10px;font-style:italic">(Basado en MetaMetrics, USA; muy útil como referencia para tus estudiantes de Colombia)</p>
+                <div style="overflow-x:auto">
+                    <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+                        <thead>
+                            <tr style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white">
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Grado</th>
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Rango Lexile típico</th>
+                                <th style="padding:12px;text-align:left;font-weight:600;font-size:12px">Lectura esperada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    TABLA_LEXILE_REFERENCIA.forEach((row, index) => {
+        const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+        html += `
+            <tr style="background:${bgColor}">
+                <td style="padding:10px;font-size:12px;font-weight:600;color:#333">${row.grado}°</td>
+                <td style="padding:10px;font-size:12px;color:#667eea;font-weight:600">${row.rango}</td>
+                <td style="padding:10px;font-size:12px;color:#666">${row.lectura}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+// === FUNCIÓN: Toggle Tablas de Referencia ===
+function toggleTablasReferencia() {
+    const tablasDiv = document.getElementById('tablasReferencia');
+    const btn = document.getElementById('btnTablasReferencia');
+    
+    if (!tablasDiv || !btn) {
+        console.error('No se encontraron los elementos de tablas de referencia');
+        return;
+    }
+    
+    const isVisible = tablasDiv.style.display !== 'none' && tablasDiv.offsetParent !== null;
+    
+    if (!isVisible) {
+        // Mostrar tablas
+        tablasDiv.style.display = 'block';
+        btn.textContent = 'Ocultar Tablas de Referencia';
+        // Scroll suave hacia las tablas después de un pequeño delay
+        setTimeout(() => {
+            tablasDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    } else {
+        // Ocultar tablas
+        tablasDiv.style.display = 'none';
+        btn.textContent = '📊 Ver Tablas de Referencia';
+    }
+}
+
+// === FUNCIÓN: Agregar Tablas de Referencia al PDF ===
+function agregarTablasReferenciaPDF(doc, y, pageWidth, gradoEstudiante) {
+    let currentY = y;
+    const margin = 14;
+    const availableWidth = pageWidth - (margin * 2);
+    
+    const espacioNecesario = 100;
+    const espacioDisponible = doc.internal.pageSize.height - currentY - 20;
+    
+    if (espacioDisponible < espacioNecesario) {
+        doc.addPage();
+        currentY = 20;
+    }
+    
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, currentY, availableWidth, 7, 'F');
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('TABLAS DE REFERENCIA PARA INTERPRETACIÓN', pageWidth / 2, currentY + 5, { align: 'center' });
+    currentY += 12;
+    
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    doc.text('Tabla 1: Rangos de Referencia por Grado (Velocidad y Comprensión)', margin, currentY);
+    currentY += 6;
+    
+    const colWidths = [16, 32, 28, 32, 42];
+    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+    const headers = ['Grado', 'Vel. Simple', '% Comp.', 'Vel. Efect.', 'Fuente'];
+    
+    doc.setFontSize(6.5);
+    doc.setFont(undefined, 'bold');
+    let xPos = margin;
+    headers.forEach((header, i) => {
+        doc.setFillColor(102, 126, 234);
+        doc.rect(xPos, currentY, colWidths[i], 5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(header, xPos + 1, currentY + 3.5, { maxWidth: colWidths[i] - 2 });
+        xPos += colWidths[i];
+    });
+    currentY += 6;
+    
+    doc.setFontSize(6);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    
+    TABLA_MAESTRA_REFERENCIA.forEach((row, index) => {
+        if (currentY > doc.internal.pageSize.height - 30) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        const isEven = index % 2 === 0;
+        const fillR = isEven ? 250 : 255;
+        const fillG = isEven ? 250 : 255;
+        const fillB = isEven ? 250 : 255;
+        doc.setFillColor(fillR, fillG, fillB);
+        doc.rect(margin, currentY - 1, totalWidth, 4, 'F');
+        
+        xPos = margin;
+        const rowData = [
+            row.grado.toString() + '°',
+            row.velocidad,
+            row.comprension + '%',
+            row.velocidadEfectiva,
+            row.fuente
+        ];
+        
+        rowData.forEach((data, i) => {
+            doc.text(data, xPos + 1, currentY + 2.5, { maxWidth: colWidths[i] - 2 });
+            xPos += colWidths[i];
+        });
+        
+        currentY += 5;
+    });
+    
+    currentY += 8;
+    
+    if (currentY > doc.internal.pageSize.height - 40) {
+        doc.addPage();
+        currentY = 20;
+    }
+    
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    doc.text('Tabla 2: Rangos Lexile por Grado Escolar (Aproximado)', margin, currentY);
+    doc.setFontSize(6);
+    doc.setFont(undefined, 'normal');
+    doc.text('(Basado en MetaMetrics, USA; útil como referencia para estudiantes de Colombia)', margin, currentY + 3);
+    currentY += 8;
+    
+    const colWidthsLexile = [22, 32, availableWidth - 54];
+    const totalWidthLexile = colWidthsLexile.reduce((a, b) => a + b, 0);
+    const headersLexile = ['Grado', 'Rango Lexile', 'Lectura Esperada'];
+    
+    doc.setFontSize(6.5);
+    doc.setFont(undefined, 'bold');
+    xPos = margin;
+    headersLexile.forEach((header, i) => {
+        doc.setFillColor(102, 126, 234);
+        doc.rect(xPos, currentY, colWidthsLexile[i], 5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(header, xPos + 1, currentY + 3.5, { maxWidth: colWidthsLexile[i] - 2 });
+        xPos += colWidthsLexile[i];
+    });
+    currentY += 6;
+    
+    doc.setFontSize(6);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    
+    TABLA_LEXILE_REFERENCIA.forEach((row, index) => {
+        if (currentY > doc.internal.pageSize.height - 30) {
+            doc.addPage();
+            currentY = 20;
+        }
+        
+        const isEven = index % 2 === 0;
+        const fillR = isEven ? 250 : 255;
+        const fillG = isEven ? 250 : 255;
+        const fillB = isEven ? 250 : 255;
+        doc.setFillColor(fillR, fillG, fillB);
+        doc.rect(margin, currentY - 1, totalWidthLexile, 4, 'F');
+        
+        xPos = margin;
+        const rowData = [
+            row.grado.toString() + '°',
+            row.rango,
+            row.lectura
+        ];
+        
+        rowData.forEach((data, i) => {
+            doc.text(data, xPos + 1, currentY + 2.5, { maxWidth: colWidthsLexile[i] - 2 });
+            xPos += colWidthsLexile[i];
+        });
+        
+        currentY += 5;
+    });
+    
+    currentY += 8;
+    return currentY;
+}
+
+function mostrarInforme(informe) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('contenido').style.display = 'block';
+    
+    const { estudiante, mensualidad, lectura, desafio, aplicaciones } = informe.datos_json;
+    const ciclo = informe.ciclo;
+    
+    const estadoMens = getEstadoMensualidad(mensualidad.estado);
+    
+    let html = `
+        <div class="header">
+            <h1>INFORME THINKING SKILLS PROGRAM</h1>
+            <p>Ciclo ${ciclo} | ${new Date(informe.fecha_generacion).toLocaleDateString('es-CO')}</p>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">DATOS DEL ESTUDIANTE</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Nombre Completo</div>
+                    <div class="info-value">${estudiante.nombre} ${estudiante.apellidos}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Código</div>
+                    <div class="info-value">${estudiante.codigo_estudiante}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Grado</div>
+                    <div class="info-value">Grado ${estudiante.grado}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Edad</div>
+                    <div class="info-value">${estudiante.edad || 'N/A'} años</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Estado Mensualidad</div>
+                    <div><span class="badge badge-${estadoMens.color}">${estadoMens.texto}</span></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Acudiente</div>
+                    <div class="info-value">${estudiante.nombre_acudiente} ${estudiante.apellido_acudiente}</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (lectura) {
+        const velColor = lectura.velocidad_simple >= 100 ? 'verde' : 'rojo';
+        const compColor = lectura.comprension >= 70 ? 'verde' : 'rojo';
+        const velEfColor = lectura.velocidad_efectiva >= 70 ? 'verde' : 'rojo';
+        
+        html += `
+            <div class="section">
+                <div class="section-title">LECTURA CRITICA</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Título</div>
+                        <div class="info-value">${lectura.titulo_lectura || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Autor</div>
+                        <div class="info-value">${lectura.autor || 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <div class="info-grid" style="margin-top:20px">
+                    <div class="metric">
+                        <div class="metric-value">${lectura.word_count || 'N/A'}</div>
+                        <div class="metric-label">Palabras Leídas</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${lectura.tiempo_minutos || 'N/A'}</div>
+                        <div class="metric-label">Minutos</div>
+                    </div>
+                </div>
+                
+                <div class="info-grid" style="margin-top:15px;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr))">
+                    <div class="info-item">
+                        <div class="info-label">Lexile</div>
+                        <div><span class="badge badge-azul">${lectura.lexile || obtenerLexile(lectura) || 'N/A'}</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Velocidad Simple</div>
+                        <div><span class="badge badge-${velColor}">${lectura.velocidad_simple} palabras/min</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Comprensión</div>
+                        <div><span class="badge badge-${compColor}">${lectura.comprension}%</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Velocidad Efectiva</div>
+                        <div><span class="badge badge-${velEfColor}">${lectura.velocidad_efectiva}</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Vocabulario</div>
+                        <div><span class="badge badge-azul">${calcularVocabulario(lectura)}</span></div>
+                    </div>
+                </div>
+                
+                <!-- Botón para mostrar/ocultar tablas de referencia -->
+                <div style="text-align:center;margin-top:20px;margin-bottom:20px">
+                    <button id="btnTablasReferencia" class="btn btn-purple" onclick="toggleTablasReferencia()" style="font-size:16px;padding:12px 24px">
+                        Ocultar Tablas de Referencia
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Agregar las tablas de referencia después de la sección de lectura
+        try {
+            const tablasHTML = generarHTMLTablasReferencia(estudiante.grado);
+            if (tablasHTML) {
+                html += tablasHTML;
+            } else {
+                console.error('Error: generarHTMLTablasReferencia no retornó HTML');
+            }
+        } catch (error) {
+            console.error('Error al generar tablas de referencia:', error);
+        }
+    }
+    
+    if (desafio) {
+        const desColor = desafio.porcentaje >= 70 ? 'verde' : 'rojo';
+        html += `
+            <div class="section">
+                <div class="section-title">DESAFIO MENTAL</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Desafío</div>
+                        <div class="info-value">${desafio.desafio || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Resultado</div>
+                        <div><span class="badge badge-${desColor}">${desafio.porcentaje}%</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (aplicaciones && aplicaciones.length > 0) {
+        html += `
+            <div class="section">
+                <div class="section-title">APLICACIONES BRAIN TRAINING</div>
+                <div class="apps-grid">
+        `;
+        
+        aplicaciones.forEach((app, i) => {
+            const appColor = app.efectividad >= 70 ? 'verde' : 'rojo';
+            html += `
+                <div class="app-card">
+                    <div class="app-title">${i + 1}. ${app.habilidad}</div>
+                    <div class="info-grid">
+                        <div>
+                            <div class="info-label">Aplicación</div>
+                            <div class="info-value">${app.aplicacion}</div>
+                        </div>
+                        <div>
+                            <div class="info-label">Meta</div>
+                            <div class="info-value">${app.meta}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px">
+                        <div class="info-label">Rendimiento</div>
+                        <div><span class="badge badge-${appColor}">${app.efectividad}%</span></div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+        <div class="actions">
+            <button class="btn btn-success" onclick="descargarPDF()">Descargar PDF</button>
+            <button class="btn btn-whatsapp" onclick="compartirWhatsApp()">Compartir WhatsApp</button>
+            <button class="btn" onclick="window.print()">Imprimir</button>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Vistas:</strong> ${informe.vistas + 1}</p>
+            <p style="margin-top:10px">Designed by <strong>Hansel Peña Diaz</strong> - 3143090748</p>
+            <p style="margin-top:5px;font-size:12px">Este informe expira el ${new Date(informe.expira).toLocaleDateString('es-CO')}</p>
+        </div>
+    `;
+    
+    document.getElementById('contenido').innerHTML = html;
+}
+
+async function descargarPDF() {
+    if (!datosInforme) return;
+    
+    const { estudiante, mensualidad, lectura, desafio, aplicaciones } = datosInforme;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    let y = 20;
+    
+    // ENCABEZADO
+    doc.setFillColor(102, 126, 234);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('INFORME THINKING SKILLS PROGRAM', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')} | Ciclo: ${cicloInforme}`, pageWidth / 2, 25, { align: 'center' });
+    
+    y = 50;
+    doc.setTextColor(0, 0, 0);
+    
+    // ESTUDIANTE
+    doc.setFontSize(13);
+    doc.setFont(undefined, 'bold');
+    doc.text('DATOS DEL ESTUDIANTE', 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Nombre: ${estudiante.nombre} ${estudiante.apellidos}`, 14, y);
+    y += 5;
+    doc.text(`Codigo: ${estudiante.codigo_estudiante}`, 14, y);
+    doc.text(`Grado: ${estudiante.grado}`, 110, y);
+    y += 5;
+    doc.text(`Edad: ${estudiante.edad || 'N/A'} anos`, 14, y);
+    
+    const estadoMens = getEstadoMensualidad(mensualidad.estado);
+    doc.text(`Estado Mensualidad: `, 110, y);
+    doc.setTextColor(estadoMens.color === 'verde' ? 39 : 231, estadoMens.color === 'verde' ? 174 : 76, estadoMens.color === 'verde' ? 96 : 60);
+    doc.setFont(undefined, 'bold');
+    doc.text(estadoMens.texto, 155, y);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
+    
+    y += 10;
+    
+    // LECTURA
+    if (lectura) {
+        doc.setFillColor(227, 242, 253);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('LECTURA CRITICA', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Titulo: ${lectura.titulo_lectura || 'N/A'}`, 14, y);
+        y += 4;
+        doc.text(`Autor: ${lectura.autor || 'N/A'}`, 14, y);
+        y += 4;
+        doc.text(`Palabras: ${lectura.word_count || 'N/A'}`, 14, y);
+        doc.text(`Tiempo: ${lectura.tiempo_minutos || 'N/A'} min`, 80, y);
+        y += 4;
+        const lexile = lectura.lexile || obtenerLexile(lectura) || 'N/A';
+        doc.text(`Lexile: `, 14, y);
+        doc.setTextColor(12, 84, 96);
+        doc.setFont(undefined, 'bold');
+        doc.text(lexile, 35, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 6;
+        
+        const velColor = lectura.velocidad_simple >= 100 ? '#27ae60' : '#e74c3c';
+        doc.text(`Velocidad Simple: `, 14, y);
+        doc.setTextColor(velColor === '#27ae60' ? 39 : 231, velColor === '#27ae60' ? 174 : 76, velColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.velocidad_simple} p/m`, 52, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 4;
+        
+        const compColor = lectura.comprension >= 70 ? '#27ae60' : '#e74c3c';
+        doc.text(`Comprension: `, 14, y);
+        doc.setTextColor(compColor === '#27ae60' ? 39 : 231, compColor === '#27ae60' ? 174 : 76, compColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.comprension}%`, 42, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 4;
+        
+        const velEfColor = lectura.velocidad_efectiva >= 70 ? '#27ae60' : '#e74c3c';
+        doc.text(`Velocidad Efectiva: `, 14, y);
+        doc.setTextColor(velEfColor === '#27ae60' ? 39 : 231, velEfColor === '#27ae60' ? 174 : 76, velEfColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.velocidad_efectiva}`, 50, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 8;
+        
+        // Agregar tablas de referencia después de la lectura
+        y = agregarTablasReferenciaPDF(doc, y, pageWidth, estudiante.grado);
+    }
+    
+    // DESAFIO
+    if (desafio) {
+        doc.setFillColor(255, 243, 224);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('DESAFIO MENTAL', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Desafio: ${desafio.desafio || 'N/A'}`, 14, y);
+        y += 4;
+        
+        const desColor = desafio.porcentaje >= 70 ? '#27ae60' : '#e74c3c';
+        doc.text(`Porcentaje: `, 14, y);
+        doc.setTextColor(desColor === '#27ae60' ? 39 : 231, desColor === '#27ae60' ? 174 : 76, desColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${desafio.porcentaje}%`, 38, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 8;
+    }
+    
+    // APLICACIONES
+    if (aplicaciones && aplicaciones.length > 0) {
+        doc.setFillColor(243, 229, 245);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('APLICACIONES BRAIN TRAINING', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        aplicaciones.forEach((app, i) => {
+            doc.setFont(undefined, 'bold');
+            doc.text(`${i + 1}. ${app.habilidad}`, 14, y);
+            y += 4;
+            
+            doc.setFont(undefined, 'normal');
+            doc.text(`Aplicacion: ${app.aplicacion}`, 14, y);
+            y += 4;
+            doc.text(`Meta: ${app.meta}`, 14, y);
+            
+            const appColor = app.efectividad >= 70 ? '#27ae60' : '#e74c3c';
+            doc.text(`Porcentaje: `, 80, y);
+            doc.setTextColor(appColor === '#27ae60' ? 39 : 231, appColor === '#27ae60' ? 174 : 76, appColor === '#27ae60' ? 96 : 60);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${app.efectividad}%`, 105, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            
+            y += 6;
+        });
+    }
+    
+    // FOOTER
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Designed by Hansel Pena Diaz - 3143090748', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    
+    doc.save(`Informe_${estudiante.codigo_estudiante}_Ciclo${cicloInforme}.pdf`);
+}
+
+function compartirWhatsApp() {
+    const link = window.location.href;
+    const mensaje = `Te comparto el informe digital del Thinking Skills Program. Ver aquí: ${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+// Cargar informe al inicio
+window.addEventListener('DOMContentLoaded', cargarInforme);
+</script>
+
+</body>
+</html>
